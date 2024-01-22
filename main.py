@@ -1,33 +1,9 @@
 from typing import Union
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from model import *
 
 app = FastAPI()
-
-class User(BaseModel):
-    user_type: str
-
-class User_Dataset(BaseModel):
-    user_id: User
-    is_admin: bool
-    role: str
-
-class Project(BaseModel):
-    # project_id: str
-    project_name: str
-
-class Project_User(BaseModel):
-    project_id: Project
-    is_admin: bool
-    role: str
-
-
-class Item(BaseModel):
-    name: str
-    price: float
-    is_offer: Union[bool, None] = None
-
 
 @app.get("/")
 def read_root():
