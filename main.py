@@ -1,11 +1,12 @@
 from typing import Union
 
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from model import *
 
 app = FastAPI()
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def read_root():
     return {"Hello": "World"}
 

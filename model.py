@@ -20,7 +20,6 @@ class User_Dataset(BaseModel):
     role: str
 
 class Project(BaseModel):
-    # project_id: str
     project_name: str
 
 class Project_User(BaseModel):
