@@ -3,8 +3,13 @@ from typing import Union
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from model import *
+from adapters.cbioportalRoutes import router as cbioportalRouter
+
 
 app = FastAPI()
+
+# Include the router from the adapter_routes file
+app.include_router(cbioportalRouter, prefix="/cbio", tags=["cbio"])
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():

@@ -1,91 +1,70 @@
-from fastapi import APIRouter, HTTPException, Path, Query, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Path
 from httpx import AsyncClient
+import certifi
+from typing import List, Optional
 
-app = APIRouter()
+router = APIRouter()
 
 # External API endpoint
 EXTERNAL_API_URL = "https://www.cbioportal.org/api"
 
-
 # Server running status
-@app.get("/health")
+@router.get("/health")
 async def get_health_status():
     try:
-        async with AsyncClient() as client:
-            response = await client.get(EXTERNAL_API_URL)
+        async with AsyncClient(verify=certifi.where()) as client:
+            response = await client.get(EXTERNAL_API_URL + "/health")
+        
         response.raise_for_status()
         
         external_data = response.json()
-        return {"external_data": external_data}
+        return {"status": external_data["status"]}
 
     except HTTPException as e:
         raise HTTPException(status_code=e.status_code, detail="External API Error")
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        print(f"Internal server error: {e}")  # Log the error for debugging
+        raise HTTPException(status_code=503, detail="Internal Data Registry Server Error")
 
-# # Treatments
-# @app.post("/api/treatments/sample")
-# def get_treatment_sample():
-#     return {"message": "Treatment created for sample"}
+@router.post("/studies/{studyId}/clinical-data/fetch")
+async def fetch_clinical_data(
+    studyId: str = Path(..., title="Study ID", description="e.g., acc_tcga"),
+    clinicalDataType: str = Query("SAMPLE", title="Clinical Data Type", description="Type of the clinical data", regex="^(SAMPLE|PATIENT)$"),
+    projection: str = Query("SUMMARY", title="Projection", description="Level of detail of the response", regex="^(ID|SUMMARY|DETAILED|META)$"),
+    request_data: dict = {
+        "ids": List[str],
+        "attributeIds": List[str]
+    }
+):
+    try:
+        # Validate request data
+        ids = request_data.get("ids", [])
+        attribute_ids = request_data.get("attributeIds", [])
 
-# @app.post("/api/treatments/patient")
-# def create_treatment_patient():
-#     return {"message": "Treatment created for patient"}
+        # Make the request to the external API
+        async with AsyncClient(verify=certifi.where()) as client:
+            response = await client.post(
+                f"{EXTERNAL_API_URL}/studies/{studyId}/clinical-data/fetch",
+                params={
+                    "clinicalDataType": clinicalDataType,
+                    "projection": projection
+                },
+                json={
+                    "ids": ids,
+                    "attributeIds": attribute_ids
+                }
+            )
 
-# # Add other treatment routes...
+        response.raise_for_status()
 
-# # Clinical Data
-# @app.post("/api/studies/{studyId}/clinical-data/fetch")
-# def fetch_clinical_data(studyId: int, query_param: str = Query(None)):
-#     return {"studyId": studyId, "query_param": query_param}
+        # Parse the response
+        clinical_data = response.json()
+        return clinical_data
 
-# # Add other clinical data routes...
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail="External API Error")
 
-# # Studies
-# @app.post("/api/studies/tags/fetch")
-# def fetch_study_tags():
-#     return {"message": "Fetching study tags"}
-
-# # Add other study routes...
-
-# # Samples
-# @app.post("/api/samples/fetch")
-# def fetch_samples():
-#     return {"message": "Fetching samples"}
-
-# # Add other sample routes...
-
-# # Sample Lists
-# @app.post("/api/sample-lists/fetch")
-# def fetch_sample_lists():
-#     return {"message": "Fetching sample lists"}
-
-# # Add other sample list routes...
-
-# # Patients
-# @app.post("/api/patients/fetch")
-# def fetch_patients():
-#     return {"message": "Fetching patients"}
-
-# # Add other patient routes...
-
-# # Mutations
-# @app.post("/api/mutations/fetch")
-# def fetch_mutations():
-#     return {"message": "Fetching mutations"}
-
-# # Add other mutation routes...
-
-# # Molecular Data
-# @app.post("/api/molecular-profiles/{molecularProfileId}/molecular-data/fetch")
-# def fetch_molecular_data(molecularProfileId: int):
-#     return {"molecularProfileId": molecularProfileId}
-
-# # Add other molecular data routes...
-
-# # Add other routes...
-
-# if __name__ == "__main__":
-#     import uvicorn
-
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+    except Exception as e:
+        print(f"Internal server error: {e}")  # Log the error for debugging
+        raise HTTPException(status_code=503, detail="Internal Data Registry Server Error")
